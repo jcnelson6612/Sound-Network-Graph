@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relational Soundscape Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+        .node {
+            cursor: pointer;
+        }
+        /* Using CSS transitions for smooth opacity changes */
+        .node, .node text, .link {
+            transition: opacity 0.3s ease-in-out;
+        }
+        .node circle {
+            transition: transform 0.2s ease-in-out;
+        }
+        .node:hover circle {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="absolute top-4 left-4 z-10">
+        <input type="text" id="search-bar" placeholder="Search sounds..." class="bg-white bg-opacity-70 backdrop-blur-sm rounded-md px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-gray-400 focus:outline-none transition w-64 text-sm">
+    </div>
+
+    <div id="graph-container" class="w-screen h-screen"></div>
+    
+    <script>
+        // --- DATA ---
+        const soundscapeData = {
+            nodes: [
+  {
+    "id": "Water Lapping",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1759891854/Water_Lapping_jqk7hz.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Sunflower Stalk",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746229/Sunflower_Stalk_1_noe3k6.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Squash Vine",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746222/Squash_Vine_1_s1yhrk.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Sirens and Rowers",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746297/Sirens_and_Rowers_f4j9q3.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Shaking Dead Tree",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746228/Shaking_Dead_Tree_3_j3qjax.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Rustling Squash Leaves",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746214/Rustling_Squash_Leaves_Between_Fingers_nhvtxf.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Rubbing Leaves",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746201/Rubbing_Leaf_with_Fingers_yvld6g.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Rowers",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746291/Rowers_udw3ck.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Tomato Plants",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746022/Rick_s_Tomato_Plants_jqs8pe.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Stomping",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746022/Rick_s_Stomping_nnajdb.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Beanstalk",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746023/Rick_s_Beanstalk_np33xb.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Basil Plant",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746022/Rick_s_Basil_Plant_yoh8cp.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Watering Plants",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760809458/Rick_Watering_Plants_lgi8lq.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Motorcycle Idling",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746200/Motorcycle_Idling_qig8ga.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Birdsong 1",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746199/Misc_Birdsong_yrgh0k.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Birdsong 2",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746203/Misc_Birdsong_2_xjl2lo.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Log Tapping",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746257/Log_Tapping_a5at0k.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Log Scraping",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746283/Log_Scraping_1_vicubf.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Log Falling",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746261/Log_Falling_1_timqfi.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Light Ballast",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746200/Light_Ballast_by_Loud_Road_xjhp6f.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Windy Leaves",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746311/Leaves_Wind_2_ikh50v.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Brushing against Plants",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746217/Leaves_Brushing_Against_Leg_nlt0ga.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Road Noises",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746209/Generic_Road_Noise_hlpvoi.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Ambience",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746319/General_Park_Ambience_sscrca.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Footsteps",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746267/Footsteps_1_bp4wzm.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Helicopter Landing",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746235/Enter_Gate_and_Helicopter_Landing_shr0ib.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Ducks Bathing",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746234/Ducks_Bathing_x5pnyy.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Dropping Leaves",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746280/Dropping_Leaves_2_fqo55b.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Learning about Roots",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746290/Digging_with_Will_Dialogue_2_gy3941.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Digging",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746261/Digging_2_rpwiby.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Crickets",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746269/Crickets_d9wqf9.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Crickets and Airplane",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746279/Cricket_and_Airplane_wl1joa.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Cicadas",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1759890566/Cicadas_mje4ok.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Car Acceleration",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746211/Car_Acceleration_at_Stoplight_lehbxk.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Breathing",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746252/Breathing_adlyw8.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Crunching Branches",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746247/Branches_Crunching_jjfgaf.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Breaking Branches",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746246/Branches_Breaking_pb1iup.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Birdsong/Car Noise",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746023/Birdsong_with_car_hum_s78bzd.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Bird/Siren",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746239/Bird_and_Siren_sk5h7g.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Birds and Ducks",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746209/Bird_and_Duck_Songs_bprrjg.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Bird Drops her Nut",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746204/Bird_Drops_Her_Nut_bmzc0p.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Bird Call 1",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746240/Bird_Call_1_tunkh9.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Bird Call 2",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746244/Bird_Call_2_ltsyhv.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Bike",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746239/Bicycle_Sprocket_Clicking_wlgl6p.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Bees 1",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746290/Bees_1_ihrp3l.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Bees 2",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746291/Bees_2_dglpio.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Bees 3",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746304/Bees_3_l9daze.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Bees 4",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746283/Bees_4_rqgjvm.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Bees 5",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801210/Bee_Buzzing_zsmjb6.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Airplane",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760746305/Airplane_ohi0po.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Children's Speech",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801289/Children_s_Speech_jph9g6.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Shed Floor",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801230/Shed_Floor_bcdzay.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Scraping Bottles",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801227/Scraping_Bottles_1_kxqpig.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Shaking Metal Tower",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801229/Shaking_Metal_Tower_wszwdb.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Rattling Metal Tower",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801225/Rattling_Metal_Tower_me4hur.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Pounding Metal Tower",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801224/Pounding_on_Metal_Tower_lhzeo1.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Tapping Metal Tower",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801204/Tapping_on_Metal_Tower_cronn6.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Opening Latch",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801222/Opening_Latch_zpsxse.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Leaf Rustling in Hand",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801221/Leaf_Rustling_drd07r.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Insect Repellant",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801221/Insect_Repellant_mmfezb.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Hose Handle",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801218/Hose_Handle_rga673.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Gardener Talking",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801218/Gardener_Talking_lqpfpl.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Eating Tomato",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801216/Eating_Tomato_gxmri4.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Drawer in Shed",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801215/Drawer_in_Shed_bexw9k.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Door Slam",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801214/Door_Slam_lfhpyi.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Door Hinge",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801213/Door_Hinge_1_dlckav.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Nails in Shed",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801211/Box_of_Nails_in_Shed_mg5syl.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Asking a Question",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801209/Asking_a_Question_tut4ya.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Wood Tapping",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801207/Wood_Tapping_mlw68z.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Wood Scraping",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801207/Wood_Scraping_k4rkt0.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Water Timer Clicking",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801205/Water_Timer_Clicking_cmlpvm.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Sound Artist Conversation",
+    "sound": "https://res.cloudinary.com/dxvjtqgka/video/upload/v1760801203/Sound_Artist_Conversation_w1rua7.mp3",
+    "group": "all"
+  },
+  {
+    "id": "Infrastructure",
+    "sound": "",
+    "group": "category"
+  },
+  {
+    "id": "Machines",
+    "sound": "",
+    "group": "category"
+  },
+  {
+    "id": "Labor",
+    "sound": "",
+    "group": "category"
+  },
+  {
+    "id": "Body",
+    "sound": "",
+    "group": "category"
+  },
+  {
+    "id": "Flora",
+    "sound": "",
+    "group": "category"
+  },
+  {
+    "id": "Fauna",
+    "sound": "",
+    "group": "category"
+  },
+  {
+    "id": "Community",
+    "sound": "",
+    "group": "category"
+  },
+  {
+    "id": "Earth",
+    "sound": "",
+    "group": "category"
+  }
+],
+            links: 
+            [
+  {
+    "source": "Water Lapping",
+    "targets": ""
+  },
+  {
+    "source": "Sunflower Stalk",
+    "targets": ""
+  },
+  {
+    "source": "Squash Vine",
+    "targets": "Rustling Squash Leaves"
+  },
+  {
+    "source": "Sirens and Rowers",
+    "targets": ""
+  },
+  {
+    "source": "Shaking Dead Tree",
+    "targets": "Log Tapping, Log Scraping, Log Falling, Dropping Leaves"
+  },
+  {
+    "source": "Rustling Squash Leaves",
+    "targets": ""
+  },
+  {
+    "source": "Rubbing Leaves",
+    "targets": "Leaf Rustling in Hand"
+  },
+  {
+    "source": "Rowers",
+    "targets": ""
+  },
+  {
+    "source": "Tomato Plants",
+    "targets": ""
+  },
+  {
+    "source": "Stomping",
+    "targets": ""
+  },
+  {
+    "source": "Beanstalk",
+    "targets": ""
+  },
+  {
+    "source": "Basil Plant",
+    "targets": ""
+  },
+  {
+    "source": "Watering Plants",
+    "targets": "Hose Handle, Water Timer Clicking, Opening Latch"
+  },
+  {
+    "source": "Motorcycle Idling",
+    "targets": ""
+  },
+  {
+    "source": "Birdsong 1",
+    "targets": "Birdsong 2, Bird Call 1, Bird Call 2, Birdsong/Car Noise"
+  },
+  {
+    "source": "Birdsong 2",
+    "targets": ""
+  },
+  {
+    "source": "Log Tapping",
+    "targets": ""
+  },
+  {
+    "source": "Log Scraping",
+    "targets": ""
+  },
+  {
+    "source": "Log Falling",
+    "targets": ""
+  },
+  {
+    "source": "Light Ballast",
+    "targets": ""
+  },
+  {
+    "source": "Windy Leaves",
+    "targets": "Sunflower Stalk"
+  },
+  {
+    "source": "Brushing against Plants",
+    "targets": "Squash Vine, Sunflower Stalk"
+  },
+  {
+    "source": "Road Noises",
+    "targets": "Car Acceleration, Motorcycle Idling"
+  },
+  {
+    "source": "Ambience",
+    "targets": ""
+  },
+  {
+    "source": "Footsteps",
+    "targets": "Stomping, Crunching Branches"
+  },
+  {
+    "source": "Helicopter Landing",
+    "targets": ""
+  },
+  {
+    "source": "Ducks Bathing",
+    "targets": ""
+  },
+  {
+    "source": "Dropping Leaves",
+    "targets": ""
+  },
+  {
+    "source": "Learning about Roots",
+    "targets": ""
+  },
+  {
+    "source": "Digging",
+    "targets": ""
+  },
+  {
+    "source": "Crickets",
+    "targets": ""
+  },
+  {
+    "source": "Crickets and Airplane",
+    "targets": ""
+  },
+  {
+    "source": "Cicadas",
+    "targets": ""
+  },
+  {
+    "source": "Car Acceleration",
+    "targets": ""
+  },
+  {
+    "source": "Breathing",
+    "targets": "Footsteps, Windy Leaves"
+  },
+  {
+    "source": "Crunching Branches",
+    "targets": ""
+  },
+  {
+    "source": "Breaking Branches",
+    "targets": "Shaking Dead Tree"
+  },
+  {
+    "source": "Birdsong/Car Noise",
+    "targets": ""
+  },
+  {
+    "source": "Bird/Siren",
+    "targets": ""
+  },
+  {
+    "source": "Birds and Ducks",
+    "targets": ""
+  },
+  {
+    "source": "Bird Drops her Nut",
+    "targets": ""
+  },
+  {
+    "source": "Bird Call 1",
+    "targets": ""
+  },
+  {
+    "source": "Bird Call 2",
+    "targets": ""
+  },
+  {
+    "source": "Bike",
+    "targets": ""
+  },
+  {
+    "source": "Bees 1",
+    "targets": "Bees 2, Bees 3, Bees 4, Bees 5"
+  },
+  {
+    "source": "Bees 2",
+    "targets": ""
+  },
+  {
+    "source": "Bees 3",
+    "targets": ""
+  },
+  {
+    "source": "Bees 4",
+    "targets": ""
+  },
+  {
+    "source": "Bees 5",
+    "targets": ""
+  },
+  {
+    "source": "Airplane",
+    "targets": ""
+  },
+  {
+    "source": "Children's Speech",
+    "targets": ""
+  },
+  {
+    "source": "Shed Floor",
+    "targets": "Opening Latch, Drawer in Shed, Wood Scraping"
+  },
+  {
+    "source": "Scraping Bottles",
+    "targets": ""
+  },
+  {
+    "source": "Shaking Metal Tower",
+    "targets": "Tapping Metal Tower"
+  },
+  {
+    "source": "Rattling Metal Tower",
+    "targets": "Shaking Metal Tower"
+  },
+  {
+    "source": "Pounding Metal Tower",
+    "targets": "Infrastructure"
+  },
+  {
+    "source": "Tapping Metal Tower",
+    "targets": "Pounding Metal Tower"
+  },
+  {
+    "source": "Opening Latch",
+    "targets": "Door Hinge"
+  },
+  {
+    "source": "Leaf Rustling in Hand",
+    "targets": ""
+  },
+  {
+    "source": "Insect Repellant",
+    "targets": ""
+  },
+  {
+    "source": "Hose Handle",
+    "targets": ""
+  },
+  {
+    "source": "Gardener Talking",
+    "targets": "Beanstalk, Basil Plant, Watering Plants, Scraping Bottles, Asking a Question"
+  },
+  {
+    "source": "Eating Tomato",
+    "targets": "Tomato Plants"
+  },
+  {
+    "source": "Drawer in Shed",
+    "targets": "Nails in Shed"
+  },
+  {
+    "source": "Door Slam",
+    "targets": ""
+  },
+  {
+    "source": "Door Hinge",
+    "targets": "Door Slam"
+  },
+  {
+    "source": "Nails in Shed",
+    "targets": ""
+  },
+  {
+    "source": "Asking a Question",
+    "targets": "Insect Repellant"
+  },
+  {
+    "source": "Wood Tapping",
+    "targets": ""
+  },
+  {
+    "source": "Wood Scraping",
+    "targets": "Wood Tapping, Water Timer Clicking"
+  },
+  {
+    "source": "Water Timer Clicking",
+    "targets": ""
+  },
+  {
+    "source": "Sound Artist Conversation",
+    "targets": "Sunflower Stalk, Tomato Plants, Rustling Squash Leaves"
+  },
+  {
+    "source": "Infrastructure",
+    "targets": "Shed Floor, Road Noises, Light Ballast, Birdsong/Car Noise, Rattling Metal Tower, Water Lapping, Opening Latch, Insect Repellant"
+  },
+  {
+    "source": "Machines",
+    "targets": "Motorcycle Idling, Bird/Siren, Sirens and Rowers, Helicopter Landing, Crickets and Airplane, Bike, Car Acceleration, Airplane, Rattling Metal Tower, Airplane"
+  },
+  {
+    "source": "Labor",
+    "targets": "Watering Plants, Breaking Branches, Digging, Rowers, Learning about Roots,"
+  },
+  {
+    "source": "Body",
+    "targets": "Breathing, Footsteps, Eating Tomato, Brushing against Plants, Rubbing Leaves, Rustling Squash Leaves, Bird Drops her Nut, Wood Scraping"
+  },
+  {
+    "source": "Flora",
+    "targets": "Sunflower Stalk, Learning about Roots, Shaking Dead Tree, Log Falling, Bees 1, Rustling Squash Leaves, Rubbing Leaves, Windy Leaves, Brushing against Plants"
+  },
+  {
+    "source": "Fauna",
+    "targets": "Cicadas, Birdsong 1, Birdsong 2, Bird Call 1, Bird Call 2, Crickets, Birds and Ducks, Ducks Bathing, Bees 1, Bees 2, Bird Drops her Nut"
+  },
+  {
+    "source": "Community",
+    "targets": "Sirens and Rowers, Learning about Roots, Eating Tomato, Rowers, Children's Speech, Gardener Talking, Sound Artist Conversation"
+  },
+  {
+    "source": "Earth",
+    "targets": "Breathing, Log Falling, Stomping, Digging, Ducks Bathing, Ambience, Airplane, Windy Leaves, Footsteps, Water Lapping"
+  }
+]
+        };
+        
+        // --- DATA PROCESSING ---
+        // This block converts the efficient 'targets' format into the simple list of links D3 needs,
+        // and also normalizes the data to prevent case-sensitivity issues.
+        
+        soundscapeData.nodes.forEach(n => {
+            if (n.Group) {
+                n.group = n.Group;
+                delete n.Group;
+            }
+        });
+        
+        const nodeIds = new Set(soundscapeData.nodes.map(n => n.id));
+        
+        const processedLinks = [];
+        soundscapeData.links.forEach(link => {
+            if (link.source && nodeIds.has(link.source) && link.targets) {
+                const targets = link.targets.split(',').map(t => t.trim());
+                targets.forEach(target => {
+                    if (target && nodeIds.has(target)) {
+                        processedLinks.push({ source: link.source, target: target });
+                    }
+                });
+            }
+        });
+
+
+        // --- SETUP ---
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        const svg = d3.select("#graph-container")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .on("click", stopAllSounds); 
+        
+        const container = svg.append("g");
+
+        const customColors = ["#8d99ae", "#5f6f81", "#414a52", "#2e343b", "#bfccda"]; 
+        const color = d3.scaleOrdinal(customColors);
+
+        const simulation = d3.forceSimulation(soundscapeData.nodes)
+            .force("link", d3.forceLink(processedLinks).id(d => d.id).distance(200)) // Increased distance
+            .force("charge", d3.forceManyBody().strength(-500)) // Increased repulsion
+            .force("center", d3.forceCenter(width / 2, height / 2));
+
+        const link = container.append("g")
+            .attr("class", "links")
+            .selectAll("line")
+            .data(processedLinks)
+            .enter().append("line")
+            .attr("class", "link")
+            .style("stroke", d => {
+                if (d.source.group === "category" || d.target.group === "category") {
+                    return "#90a986"; // Off-green for category links
+                }
+                return "#999"; // Default gray
+            });
+
+        const node = container.append("g")
+            .attr("class", "nodes")
+            .selectAll("g")
+            .data(soundscapeData.nodes)
+            .enter().append("g")
+            .attr("class", "node");
+        
+        node.append("circle")
+            .attr("r", 20)
+            .attr("fill", d => {
+                if (d.group === "category") {
+                    return "#90a986"; // Off-green for category nodes
+                }
+                return color(d.group);
+            });
+
+        node.append("text")
+            .text(d => d.id)
+            .attr("x", 25)
+            .attr("y", 5)
+            .style("font-size", "12px")
+            .style("fill", "#333");
+
+        simulation.on("tick", () => {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+            node
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+            
+            // NEW: Smart label positioning to avoid overlap
+            node.select('text')
+                .attr("x", d => d.x > width / 2 ? -25 : 25)
+                .style("text-anchor", d => d.x > width / 2 ? "end" : "start");
+        });
+
+        // --- AUDIO LOGIC & VISUAL STATE ---
+        let audioContext;
+        let audioBuffers = {};
+        let playingSources = [];
+        let playingNeighbors = new Set();
+        let neighborPool = [];
+        let activeNodeId = null; // Track the currently clicked node
+        const maxNeighbors = 4;
+        
+        async function getAudioBuffer(soundUrl) {
+            if (audioBuffers[soundUrl]) return audioBuffers[soundUrl];
+            try {
+                const response = await fetch(soundUrl);
+                const arrayBuffer = await response.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                audioBuffers[soundUrl] = audioBuffer;
+                return audioBuffer;
+            } catch (error) {
+                console.error(`Error loading sound from ${soundUrl}:`, error);
+            }
+        }
+        
+        function playSound(buffer, { volume = 1.0, loop = false, onended = null }) {
+            if (!buffer || !audioContext) return;
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.loop = loop;
+
+            const panner = audioContext.createStereoPanner();
+            const gainNode = audioContext.createGain();
+
+            const setRandomPan = () => {
+                if (buffer.numberOfChannels === 1) {
+                    panner.pan.value = Math.random() < 0.5 ? -0.75 : 0.75;
+                } else {
+                    panner.pan.value = 0;
+                }
+            };
+            
+            setRandomPan(); 
+
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 1);
+            
+            source.connect(panner).connect(gainNode).connect(audioContext.destination);
+            source.start(0);
+            
+            let panInterval = null;
+            if (loop && buffer.numberOfChannels === 1) {
+                panInterval = setInterval(setRandomPan, buffer.duration * 1000);
+            }
+            
+            if (onended) {
+                source.onended = () => {
+                    if (panInterval) clearInterval(panInterval);
+                    onended();
+                };
+            }
+            source.panInterval = panInterval;
+            playingSources.push(source);
+        }
+
+        function stopAllSounds() {
+            playingSources.forEach(source => {
+                if (source.panInterval) clearInterval(source.panInterval);
+                source.onended = null; 
+                source.stop();
+            });
+            playingSources = [];
+            playingNeighbors.clear();
+            neighborPool = [];
+            activeNodeId = null; // Clear the active node
+            updateOpacities(); // Reset visuals to default state
+        }
+
+        // --- Central function to control all visual opacity ---
+        function updateOpacities(hoveredData = null) {
+            const searchTerm = d3.select("#search-bar").property("value").toLowerCase();
+            const searchActive = searchTerm.length > 0;
+
+            if (hoveredData) {
+                const neighborIds = new Set(processedLinks
+                    .filter(l => l.source.id === hoveredData.id || l.target.id === hoveredData.id)
+                    .map(l => l.source.id === hoveredData.id ? l.target.id : l.source.id)
+                );
+                neighborIds.add(hoveredData.id);
+
+                d3.selectAll('.node').style('opacity', n => neighborIds.has(n.id) ? 1.0 : 0.2);
+                d3.selectAll('.node text').style('opacity', n => neighborIds.has(n.id) ? 1.0 : 0.2);
+                d3.selectAll('.link').style('stroke-opacity', l => (l.source.id === hoveredData.id || l.target.id === hoveredData.id) ? 1.0 : 0.2);
+                return;
+            }
+
+            if (searchActive) {
+                const matchingNodeIds = new Set(soundscapeData.nodes.filter(n => n.id.toLowerCase().includes(searchTerm)).map(n => n.id));
+                d3.selectAll('.node, .node text').style('opacity', n => matchingNodeIds.has(n.id) ? 1.0 : 0.1);
+                d3.selectAll('.link').style('stroke-opacity', 0.1);
+                return;
+            }
+
+            // If no node is active, everything is fully visible.
+            if (!activeNodeId) {
+                d3.selectAll('.node, .node text').style('opacity', 1.0);
+                d3.selectAll('.link').style('stroke-opacity', 0.6);
+                d3.selectAll('.node circle').attr('stroke', 'none');
+                return;
+            }
+
+            // Animate nodes and text based on the active node and playing neighbors
+            d3.selectAll('.node').style('opacity', function(nodeData) {
+                const isClicked = nodeData.id === activeNodeId;
+                const isPlaying = playingNeighbors.has(nodeData.id);
+                if (isClicked || isPlaying) return 1.0;
+                return 0.1;
+            });
+
+            d3.selectAll('.node text').style('opacity', function(nodeData) {
+                const isClicked = nodeData.id === activeNodeId;
+                const isPlaying = playingNeighbors.has(nodeData.id);
+                return (isClicked || isPlaying) ? 1.0 : 0.0;
+            });
+            
+            d3.selectAll('.node circle').attr('stroke', function(nodeData){
+                const isClicked = nodeData.id === activeNodeId;
+                const isPlaying = playingNeighbors.has(nodeData.id);
+                if(isClicked) return '#607d8b';
+                if(isPlaying) return '#9da4b1';
+                return 'none';
+            }).attr('stroke-width', function(nodeData){
+                const isClicked = nodeData.id === activeNodeId;
+                const isPlaying = playingNeighbors.has(nodeData.id);
+                if(isClicked) return 4;
+                if(isPlaying) return 3;
+                return 0;
+            });
+            
+            // Animate links
+            d3.selectAll('.link').style('stroke-opacity', function(linkData) {
+                const isClickedSource = linkData.source.id === activeNodeId;
+                const isClickedTarget = linkData.target.id === activeNodeId;
+                const isPlayingSource = playingNeighbors.has(linkData.source.id);
+                const isPlayingTarget = playingNeighbors.has(linkData.target.id);
+
+                if ((isClickedSource && isPlayingTarget) || (isClickedTarget && isPlayingSource)) {
+                    return 1.0;
+                }
+                return 0.1;
+            });
+        }
+
+        node.on("click", async function(event, d) {
+            event.stopPropagation();
+            if (!audioContext) {
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.error("Web Audio API is not supported in this browser");
+                    return;
+                }
+            }
+            
+            d3.select("#search-bar").property("value", ""); // Clear search on click
+            stopAllSounds();
+            activeNodeId = d.id;
+
+            const clickedNodeData = soundscapeData.nodes.find(node => node.id === d.id);
+            if (clickedNodeData && clickedNodeData.sound) {
+                const buffer = await getAudioBuffer(clickedNodeData.sound);
+                if (buffer) {
+                    playSound(buffer, { volume: 1.0, loop: true });
+                }
+            }
+            
+            const allNeighborIds = [...new Set(processedLinks
+                .filter(link => (link.source.id === d.id || link.target.id === d.id))
+                .map(link => link.source.id === d.id ? link.target.id : link.source.id))];
+
+            neighborPool = allNeighborIds.filter(id => {
+                const node = soundscapeData.nodes.find(n => n.id === id);
+                return node && node.sound && node.sound.trim() !== "";
+            });
+            
+            const playNextNeighbor = (finishedNeighborId = null) => {
+                if (finishedNeighborId) {
+                    playingNeighbors.delete(finishedNeighborId);
+                }
+
+                if (playingNeighbors.size >= maxNeighbors) {
+                    updateOpacities();
+                    return;
+                }
+
+                const availableNeighbors = neighborPool.filter(id => !playingNeighbors.has(id));
+
+                if (availableNeighbors.length > 0) {
+                    const nextNeighborId = availableNeighbors[Math.floor(Math.random() * availableNeighbors.length)];
+                    playingNeighbors.add(nextNeighborId);
+
+                    const neighborNodeData = soundscapeData.nodes.find(node => node.id === nextNeighborId);
+                    
+                    getAudioBuffer(neighborNodeData.sound).then(buffer => {
+                        if (buffer) {
+                            playSound(buffer, {
+                                volume: 0.25,
+                                loop: false,
+                                onended: () => playNextNeighbor(nextNeighborId)
+                            });
+                        }
+                    });
+                }
+                updateOpacities();
+            };
+
+            const initialCount = Math.min(neighborPool.length, maxNeighbors);
+            for (let i = 0; i < initialCount; i++) {
+                playNextNeighbor();
+            }
+            updateOpacities();
+        });
+
+        // --- HOVER, DRAG, & SEARCH ---
+        node.on("mouseover", (event, d) => updateOpacities(d))
+            .on("mouseout", () => updateOpacities());
+
+        d3.select("#search-bar").on("input", () => {
+            stopAllSounds();
+            updateOpacities();
+        });
+        
+        const drag = d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended);
+        
+        node.call(drag);
+
+        function dragstarted(event) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+        }
+
+        function dragged(event) {
+            event.subject.fx = event.x;
+            event.subject.fy = event.y;
+        }
+
+        function dragended(event) {
+            if (!event.active) simulation.alphaTarget(0);
+            event.subject.fx = null;
+            event.subject.fy = null;
+        }
+            
+        // --- ZOOM ---
+        const zoom = d3.zoom()
+            .scaleExtent([0.2, 5]) 
+            .on('zoom', (event) => {
+                container.attr('transform', event.transform);
+            });
+
+        svg.call(zoom);
+        
+        // --- RESIZE ---
+        window.addEventListener('resize', () => {
+            const newWidth = window.innerWidth;
+            const newHeight = window.innerHeight;
+            svg.attr('width', newWidth).attr('height', newHeight);
+            simulation.force('center', d3.forceCenter(newWidth / 2, newHeight / 2)).restart();
+        });
+
+    </script>
+</body>
+</html>
+
