@@ -984,7 +984,7 @@
                 const isClicked = nodeData.id === activeNodeId;
                 const isPlaying = playingNeighbors.has(nodeData.id);
                 if (isClicked || isPlaying) return 1.0;
-                return 0.1;
+                return 0.3;
             });
 
             d3.selectAll('.node text').style('opacity', function(nodeData) {
@@ -1144,5 +1144,6 @@
     </script>
 </body>
 </html>
+
 
 
