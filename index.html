@@ -958,16 +958,16 @@
                 );
                 neighborIds.add(hoveredData.id);
 
-                d3.selectAll('.node').style('opacity', n => neighborIds.has(n.id) ? 1.0 : 0.2);
-                d3.selectAll('.node text').style('opacity', n => neighborIds.has(n.id) ? 1.0 : 0.2);
-                d3.selectAll('.link').style('stroke-opacity', l => (l.source.id === hoveredData.id || l.target.id === hoveredData.id) ? 1.0 : 0.2);
+                d3.selectAll('.node').style('opacity', n => neighborIds.has(n.id) ? 1.0 : 0.3);
+                d3.selectAll('.node text').style('opacity', n => neighborIds.has(n.id) ? 1.0 : 0.3);
+                d3.selectAll('.link').style('stroke-opacity', l => (l.source.id === hoveredData.id || l.target.id === hoveredData.id) ? 1.0 : 0.3);
                 return;
             }
 
             if (searchActive) {
                 const matchingNodeIds = new Set(soundscapeData.nodes.filter(n => n.id.toLowerCase().includes(searchTerm)).map(n => n.id));
-                d3.selectAll('.node, .node text').style('opacity', n => matchingNodeIds.has(n.id) ? 1.0 : 0.1);
-                d3.selectAll('.link').style('stroke-opacity', 0.1);
+                d3.selectAll('.node, .node text').style('opacity', n => matchingNodeIds.has(n.id) ? 1.0 : 0.3);
+                d3.selectAll('.link').style('stroke-opacity', 0.3);
                 return;
             }
 
@@ -1144,4 +1144,5 @@
     </script>
 </body>
 </html>
+
 
