@@ -6,31 +6,185 @@
     <title>Relational Soundscape Visualizer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
+        /* --- GLASSMORPHISM & ANIMATED BACKGROUND --- */
         body {
             font-family: 'Inter', sans-serif;
             overflow: hidden;
+            background: linear-gradient(-45deg, #1a1c2c, #4a192c, #233e4a, #0f1016);
+            background-size: 400% 400%;
+            animation: gradientBG 25s ease infinite;
+            color: #e2e8f0;
         }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Glass Panel Styling */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
         .node {
             cursor: pointer;
+            transition: opacity 0.4s ease;
         }
-        /* Using CSS transitions for smooth opacity changes */
-        .node, .node text, .link {
-            transition: opacity 0.3s ease-in-out;
+
+        /* Text Styling for Dark Mode */
+        .node text {
+            font-weight: 300;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            pointer-events: none;
+            transition: opacity 0.4s ease, font-weight 0.2s;
         }
-        .node circle {
-            transition: transform 0.2s ease-in-out;
+        
+        .node:hover text {
+            font-weight: 600;
+            fill: #fff !important;
         }
+
         .node:hover circle {
-            transform: scale(1.1);
+            filter: drop-shadow(0 0 8px rgba(255,255,255,0.6));
+        }
+
+        .link {
+            transition: stroke-opacity 0.4s ease;
+        }
+
+        /* Custom Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            margin-top: -6px; 
+            box-shadow: 0 0 4px rgba(0,0,0,0.5);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+        }
+
+        /* Settings Panel Transition */
+        #settings-panel {
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+        }
+        .hidden-panel {
+            transform: translateX(120%);
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        /* Playback Control Buttons */
+        .control-btn {
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+        .control-btn.active-mode {
+            background-color: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.6);
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body>
 
-    <div class="absolute top-4 left-4 z-10">
-        <input type="text" id="search-bar" placeholder="Search sounds..." class="bg-white bg-opacity-70 backdrop-blur-sm rounded-md px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-gray-400 focus:outline-none transition w-64 text-sm">
+    <!-- Controls Container: Search + Play/Stop -->
+    <div class="absolute top-6 left-6 z-10 flex gap-3 items-center">
+        <!-- Search Bar -->
+        <input type="text" id="search-bar" placeholder="Search sounds..." 
+               class="glass-panel rounded-full px-6 py-3 text-white placeholder-gray-300 focus:ring-2 focus:ring-white/30 focus:outline-none transition w-64 text-sm tracking-wide">
+        
+        <!-- Play Button (Auto Cycle) -->
+        <button id="btn-play" class="control-btn glass-panel rounded-full p-3 text-white hover:bg-white/20" title="Auto-Cycle (30s)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+        </button>
+
+        <!-- Stop Button -->
+        <button id="btn-stop" class="control-btn glass-panel rounded-full p-3 text-white hover:bg-white/20" title="Stop All">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Settings Toggle Button -->
+    <button id="settings-toggle" class="absolute top-6 right-6 z-20 glass-panel rounded-full p-3 hover:bg-white/20 transition text-white">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+    </button>
+
+    <!-- Settings Panel -->
+    <div id="settings-panel" class="absolute top-20 right-6 z-10 glass-panel rounded-xl p-6 w-72 text-white hidden-panel flex flex-col gap-4 max-h-[80vh] overflow-y-auto">
+        <h3 class="font-semibold text-lg border-b border-white/20 pb-2 mb-2">Visual Settings</h3>
+        
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-300 flex justify-between">Glass Opacity <span id="val-opacity">0.2</span></label>
+            <input type="range" id="input-opacity" min="0" max="1" step="0.05" value="0.2" class="w-full">
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-300 flex justify-between">Glare Strength <span id="val-glare">1.0</span></label>
+            <input type="range" id="input-glare" min="0" max="1" step="0.05" value="1.0" class="w-full">
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-300 flex justify-between">Node Size <span id="val-size">20</span></label>
+            <input type="range" id="input-size" min="5" max="50" step="1" value="20" class="w-full">
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-300 flex justify-between">Link Opacity <span id="val-link">0.15</span></label>
+            <input type="range" id="input-link" min="0" max="1" step="0.01" value="0.15" class="w-full">
+        </div>
+
+        <h3 class="font-semibold text-lg border-b border-white/20 pb-2 mb-2 mt-2">Physics</h3>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-300 flex justify-between">Force/Gravity <span id="val-charge">-600</span></label>
+            <input type="range" id="input-charge" min="-2000" max="-50" step="50" value="-600" class="w-full">
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-300 flex justify-between">Link Distance <span id="val-distance">220</span></label>
+            <input type="range" id="input-distance" min="50" max="500" step="10" value="220" class="w-full">
+        </div>
+
+        <h3 class="font-semibold text-lg border-b border-white/20 pb-2 mb-2 mt-2">Audio</h3>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-300 flex justify-between">Master Volume <span id="val-volume">1.0</span></label>
+            <input type="range" id="input-volume" min="0" max="2" step="0.1" value="1.0" class="w-full">
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-300 flex justify-between">Max Neighbors <span id="val-neighbors">4</span></label>
+            <input type="range" id="input-neighbors" min="0" max="10" step="1" value="4" class="w-full">
+        </div>
     </div>
 
     <div id="graph-container" class="w-screen h-screen"></div>
@@ -775,9 +929,6 @@
         };
         
         // --- DATA PROCESSING ---
-        // This block converts the efficient 'targets' format into the simple list of links D3 needs,
-        // and also normalizes the data to prevent case-sensitivity issues.
-        
         soundscapeData.nodes.forEach(n => {
             if (n.Group) {
                 n.group = n.Group;
@@ -799,6 +950,22 @@
             }
         });
 
+        // --- GLOBAL SETTINGS ---
+        const settings = {
+            nodeOpacity: 0.2,
+            nodeSize: 20,
+            glareOpacity: 1.0,
+            linkOpacity: 0.15,
+            forceCharge: -600,
+            linkDistance: 220,
+            masterVolume: 1.0,
+            maxNeighbors: 4
+        };
+        
+        // --- AUTOPLAY STATE ---
+        let isAutoPlayMode = false;
+        let autoPlayTimer = null;
+        const autoPlayIntervalTime = 30000; // 30 seconds
 
         // --- SETUP ---
         const width = window.innerWidth;
@@ -808,16 +975,56 @@
             .append("svg")
             .attr("width", width)
             .attr("height", height)
-            .on("click", stopAllSounds); 
+            .on("click", () => stopAllSoundsMode()); // Stop everything on bg click
+
+        // ADDED: SVG Definitions for Glass/Gradient Effects
+        const defs = svg.append("defs");
+
+        // Radial Gradient for Glass Beads
+        const radialGradient = defs.append("radialGradient")
+            .attr("id", "glass-gradient")
+            .attr("cx", "30%")
+            .attr("cy", "30%")
+            .attr("r", "70%");
+        
+        radialGradient.append("stop")
+            .attr("offset", "0%")
+            .attr("stop-color", "rgba(255,255,255,0.8)"); // Highlight
+        
+        radialGradient.append("stop")
+            .attr("offset", "100%")
+            .attr("stop-color", "rgba(255,255,255,0.0)"); // Transparent edge
+
+        // Drop Shadow Filter
+        const filter = defs.append("filter")
+            .attr("id", "drop-shadow")
+            .attr("height", "130%");
+        
+        filter.append("feGaussianBlur")
+            .attr("in", "SourceAlpha")
+            .attr("stdDeviation", 3)
+            .attr("result", "blur");
+        
+        filter.append("feOffset")
+            .attr("in", "blur")
+            .attr("dx", 2)
+            .attr("dy", 2)
+            .attr("result", "offsetBlur");
+            
+        const feMerge = filter.append("feMerge");
+        feMerge.append("feMergeNode").attr("in", "offsetBlur");
+        feMerge.append("feMergeNode").attr("in", "SourceGraphic");
+
         
         const container = svg.append("g");
 
-        const customColors = ["#8d99ae", "#5f6f81", "#414a52", "#2e343b", "#bfccda"]; 
+        // Updated Palette for Dark Background
+        const customColors = ["#A9DEF9", "#FF99C8", "#E4C1F9", "#D0F4DE", "#FCF6BD"]; 
         const color = d3.scaleOrdinal(customColors);
 
         const simulation = d3.forceSimulation(soundscapeData.nodes)
-            .force("link", d3.forceLink(processedLinks).id(d => d.id).distance(200)) // Increased distance
-            .force("charge", d3.forceManyBody().strength(-500)) // Increased repulsion
+            .force("link", d3.forceLink(processedLinks).id(d => d.id).distance(settings.linkDistance)) 
+            .force("charge", d3.forceManyBody().strength(settings.forceCharge)) 
             .force("center", d3.forceCenter(width / 2, height / 2));
 
         const link = container.append("g")
@@ -828,10 +1035,12 @@
             .attr("class", "link")
             .style("stroke", d => {
                 if (d.source.group === "category" || d.target.group === "category") {
-                    return "#90a986"; // Off-green for category links
+                    return "rgba(144, 169, 134, 0.5)"; 
                 }
-                return "#999"; // Default gray
-            });
+                return "rgba(255, 255, 255, 1)"; 
+            })
+            .style("stroke-opacity", settings.linkOpacity)
+            .style("stroke-width", "1px");
 
         const node = container.append("g")
             .attr("class", "nodes")
@@ -840,21 +1049,35 @@
             .enter().append("g")
             .attr("class", "node");
         
-        node.append("circle")
-            .attr("r", 20)
+        // 1. Base Circle (The Color)
+        const baseCircles = node.append("circle")
+            .attr("class", "base-circle")
+            .attr("r", settings.nodeSize)
             .attr("fill", d => {
                 if (d.group === "category") {
-                    return "#90a986"; // Off-green for category nodes
+                    return "rgba(144, 169, 134, 0.8)"; 
                 }
                 return color(d.group);
-            });
+            })
+            .attr("fill-opacity", settings.nodeOpacity) // Uses dynamic setting
+            .attr("stroke", "rgba(255,255,255,0.6)") 
+            .attr("stroke-width", 1)
+            .style("filter", "url(#drop-shadow)"); 
+
+        // 2. Glass Shine Overlay (The Reflection)
+        const shineCircles = node.append("circle")
+            .attr("class", "shine-circle")
+            .attr("r", settings.nodeSize)
+            .attr("fill", "url(#glass-gradient)") 
+            .attr("fill-opacity", settings.glareOpacity)
+            .style("pointer-events", "none"); 
 
         node.append("text")
             .text(d => d.id)
-            .attr("x", 25)
+            .attr("x", settings.nodeSize + 8)
             .attr("y", 5)
             .style("font-size", "12px")
-            .style("fill", "#333");
+            .style("fill", "#e2e8f0"); 
 
         simulation.on("tick", () => {
             link
@@ -865,20 +1088,19 @@
             node
                 .attr("transform", d => `translate(${d.x},${d.y})`);
             
-            // NEW: Smart label positioning to avoid overlap
             node.select('text')
-                .attr("x", d => d.x > width / 2 ? -25 : 25)
+                .attr("x", d => d.x > width / 2 ? -(settings.nodeSize + 8) : (settings.nodeSize + 8))
                 .style("text-anchor", d => d.x > width / 2 ? "end" : "start");
         });
 
-        // --- AUDIO LOGIC & VISUAL STATE ---
+        // --- AUDIO LOGIC ---
         let audioContext;
+        let masterGainNode;
         let audioBuffers = {};
         let playingSources = [];
         let playingNeighbors = new Set();
         let neighborPool = [];
-        let activeNodeId = null; // Track the currently clicked node
-        const maxNeighbors = 4;
+        let activeNodeId = null; 
         
         async function getAudioBuffer(soundUrl) {
             if (audioBuffers[soundUrl]) return audioBuffers[soundUrl];
@@ -893,6 +1115,19 @@
             }
         }
         
+        function initAudio() {
+            if (!audioContext) {
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    masterGainNode = audioContext.createGain();
+                    masterGainNode.gain.value = settings.masterVolume;
+                    masterGainNode.connect(audioContext.destination);
+                } catch (e) {
+                    console.error("Web Audio API is not supported in this browser");
+                }
+            }
+        }
+
         function playSound(buffer, { volume = 1.0, loop = false, onended = null }) {
             if (!buffer || !audioContext) return;
             const source = audioContext.createBufferSource();
@@ -912,10 +1147,12 @@
             
             setRandomPan(); 
 
+            // Ramp up local gain
             gainNode.gain.setValueAtTime(0, audioContext.currentTime);
             gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 1);
             
-            source.connect(panner).connect(gainNode).connect(audioContext.destination);
+            // Connect chain: Source -> Panner -> Gain -> MasterGain -> Destination
+            source.connect(panner).connect(gainNode).connect(masterGainNode);
             source.start(0);
             
             let panInterval = null;
@@ -933,7 +1170,8 @@
             playingSources.push(source);
         }
 
-        function stopAllSounds() {
+        // Stops sounds but keeps AutoPlay state intact (helper)
+        function stopAllSoundsCore() {
             playingSources.forEach(source => {
                 if (source.panInterval) clearInterval(source.panInterval);
                 source.onended = null; 
@@ -942,11 +1180,22 @@
             playingSources = [];
             playingNeighbors.clear();
             neighborPool = [];
-            activeNodeId = null; // Clear the active node
-            updateOpacities(); // Reset visuals to default state
+            activeNodeId = null; 
+            updateOpacities(); 
         }
 
-        // --- Central function to control all visual opacity ---
+        // Full Stop (UI button)
+        function stopAllSoundsMode() {
+            // Disable AutoPlay mode
+            isAutoPlayMode = false;
+            clearTimeout(autoPlayTimer);
+            updateControlButtons();
+            
+            // Stop Audio
+            stopAllSoundsCore();
+        }
+
+        // --- VISUAL STATE ---
         function updateOpacities(hoveredData = null) {
             const searchTerm = d3.select("#search-bar").property("value").toLowerCase();
             const searchActive = searchTerm.length > 0;
@@ -958,33 +1207,34 @@
                 );
                 neighborIds.add(hoveredData.id);
 
-                d3.selectAll('.node').style('opacity', n => neighborIds.has(n.id) ? 1.0 : 0.3);
-                d3.selectAll('.node text').style('opacity', n => neighborIds.has(n.id) ? 1.0 : 0.3);
-                d3.selectAll('.link').style('stroke-opacity', l => (l.source.id === hoveredData.id || l.target.id === hoveredData.id) ? 1.0 : 0.3);
+                d3.selectAll('.node').style('opacity', n => neighborIds.has(n.id) ? 1.0 : settings.nodeOpacity); 
+                d3.selectAll('.node text').style('opacity', n => neighborIds.has(n.id) ? 1.0 : 0.1);
+                d3.selectAll('.link').style('stroke-opacity', l => (l.source.id === hoveredData.id || l.target.id === hoveredData.id) ? 0.8 : 0.05);
                 return;
             }
 
             if (searchActive) {
                 const matchingNodeIds = new Set(soundscapeData.nodes.filter(n => n.id.toLowerCase().includes(searchTerm)).map(n => n.id));
-                d3.selectAll('.node, .node text').style('opacity', n => matchingNodeIds.has(n.id) ? 1.0 : 0.3);
-                d3.selectAll('.link').style('stroke-opacity', 0.3);
+                d3.selectAll('.node, .node text').style('opacity', n => matchingNodeIds.has(n.id) ? 1.0 : settings.nodeOpacity);
+                d3.selectAll('.link').style('stroke-opacity', 0.05);
                 return;
             }
 
-            // If no node is active, everything is fully visible.
             if (!activeNodeId) {
                 d3.selectAll('.node, .node text').style('opacity', 1.0);
-                d3.selectAll('.link').style('stroke-opacity', 0.6);
-                d3.selectAll('.node circle').attr('stroke', 'none');
+                d3.selectAll('.link').style('stroke-opacity', settings.linkOpacity);
+                // Reset strokes
+                d3.selectAll('.node circle.base-circle')
+                    .attr('stroke', 'rgba(255,255,255,0.6)')
+                    .attr('stroke-width', 1);
                 return;
             }
 
-            // Animate nodes and text based on the active node and playing neighbors
             d3.selectAll('.node').style('opacity', function(nodeData) {
                 const isClicked = nodeData.id === activeNodeId;
                 const isPlaying = playingNeighbors.has(nodeData.id);
                 if (isClicked || isPlaying) return 1.0;
-                return 0.3;
+                return settings.nodeOpacity; // Use setting
             });
 
             d3.selectAll('.node text').style('opacity', function(nodeData) {
@@ -993,21 +1243,21 @@
                 return (isClicked || isPlaying) ? 1.0 : 0.0;
             });
             
-            d3.selectAll('.node circle').attr('stroke', function(nodeData){
+            // Highlight Rings
+            d3.selectAll('.node circle.base-circle').attr('stroke', function(nodeData){
                 const isClicked = nodeData.id === activeNodeId;
                 const isPlaying = playingNeighbors.has(nodeData.id);
-                if(isClicked) return '#607d8b';
-                if(isPlaying) return '#9da4b1';
-                return 'none';
+                if(isClicked) return '#fff';
+                if(isPlaying) return '#d1fae5';
+                return 'rgba(255,255,255,0.6)';
             }).attr('stroke-width', function(nodeData){
                 const isClicked = nodeData.id === activeNodeId;
                 const isPlaying = playingNeighbors.has(nodeData.id);
-                if(isClicked) return 4;
-                if(isPlaying) return 3;
-                return 0;
+                if(isClicked) return 3;
+                if(isPlaying) return 2;
+                return 1;
             });
             
-            // Animate links
             d3.selectAll('.link').style('stroke-opacity', function(linkData) {
                 const isClickedSource = linkData.source.id === activeNodeId;
                 const isClickedTarget = linkData.target.id === activeNodeId;
@@ -1015,30 +1265,25 @@
                 const isPlayingTarget = playingNeighbors.has(linkData.target.id);
 
                 if ((isClickedSource && isPlayingTarget) || (isClickedTarget && isPlayingSource)) {
-                    return 1.0;
+                    return 0.6;
                 }
-                return 0.1;
+                return 0.05;
             });
         }
-
-        node.on("click", async function(event, d) {
-            event.stopPropagation();
-            if (!audioContext) {
-                try {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                } catch (e) {
-                    console.error("Web Audio API is not supported in this browser");
-                    return;
-                }
-            }
+        
+        // --- ACTIVATION LOGIC (Refactored for reuse) ---
+        async function activateNode(d) {
+            initAudio(); // Ensure audio context starts on interaction
+            d3.select("#search-bar").property("value", ""); 
             
-            d3.select("#search-bar").property("value", ""); // Clear search on click
-            stopAllSounds();
+            // Stop current sounds, but DON'T reset the AutoPlay mode yet
+            stopAllSoundsCore();
+            
             activeNodeId = d.id;
 
-            const clickedNodeData = soundscapeData.nodes.find(node => node.id === d.id);
-            if (clickedNodeData && clickedNodeData.sound) {
-                const buffer = await getAudioBuffer(clickedNodeData.sound);
+            constclickedNodeData = soundscapeData.nodes.find(node => node.id === d.id);
+            if (constclickedNodeData && constclickedNodeData.sound) {
+                const buffer = await getAudioBuffer(constclickedNodeData.sound);
                 if (buffer) {
                     playSound(buffer, { volume: 1.0, loop: true });
                 }
@@ -1057,8 +1302,11 @@
                 if (finishedNeighborId) {
                     playingNeighbors.delete(finishedNeighborId);
                 }
+                
+                // Safety check: if we stopped playing, stop recursion
+                if (!activeNodeId) return;
 
-                if (playingNeighbors.size >= maxNeighbors) {
+                if (playingNeighbors.size >= settings.maxNeighbors) {
                     updateOpacities();
                     return;
                 }
@@ -1072,7 +1320,8 @@
                     const neighborNodeData = soundscapeData.nodes.find(node => node.id === nextNeighborId);
                     
                     getAudioBuffer(neighborNodeData.sound).then(buffer => {
-                        if (buffer) {
+                        // Check activeNodeId again before playing to prevent zombie sounds
+                        if (buffer && activeNodeId) {
                             playSound(buffer, {
                                 volume: 0.25,
                                 loop: false,
@@ -1084,19 +1333,74 @@
                 updateOpacities();
             };
 
-            const initialCount = Math.min(neighborPool.length, maxNeighbors);
+            const initialCount = Math.min(neighborPool.length, settings.maxNeighbors);
             for (let i = 0; i < initialCount; i++) {
                 playNextNeighbor();
             }
             updateOpacities();
+
+            // Handle AutoPlay Timer Reset
+            if (isAutoPlayMode) {
+                clearTimeout(autoPlayTimer);
+                autoPlayTimer = setTimeout(triggerRandomNode, autoPlayIntervalTime);
+            }
+        }
+
+        // --- AUTOPLAY LOGIC ---
+        function startAutoPlayMode() {
+            initAudio();
+            isAutoPlayMode = true;
+            updateControlButtons();
+            triggerRandomNode();
+        }
+
+        function triggerRandomNode() {
+            if (!isAutoPlayMode) return;
+            
+            // MODIFIED: Filter only for "category" nodes (the green hubs)
+            const categoryNodes = soundscapeData.nodes.filter(n => n.group === "category");
+            
+            if (categoryNodes.length > 0) {
+                // Pick a random category node
+                const randomNode = categoryNodes[Math.floor(Math.random() * categoryNodes.length)];
+                
+                // Simulate activation
+                activateNode(randomNode);
+            }
+        }
+
+        function updateControlButtons() {
+            const playBtn = document.getElementById('btn-play');
+            if (isAutoPlayMode) {
+                playBtn.classList.add('active-mode');
+            } else {
+                playBtn.classList.remove('active-mode');
+            }
+        }
+
+        // --- INTERACTION HANDLERS ---
+        node.on("click", function(event, d) {
+            event.stopPropagation();
+            activateNode(d);
+        });
+        
+        // Button Handlers
+        document.getElementById('btn-play').addEventListener('click', (e) => {
+            e.stopPropagation();
+            startAutoPlayMode();
         });
 
-        // --- HOVER, DRAG, & SEARCH ---
+        document.getElementById('btn-stop').addEventListener('click', (e) => {
+            e.stopPropagation();
+            stopAllSoundsMode();
+        });
+
+
         node.on("mouseover", (event, d) => updateOpacities(d))
             .on("mouseout", () => updateOpacities());
 
         d3.select("#search-bar").on("input", () => {
-            stopAllSounds();
+            stopAllSoundsMode();
             updateOpacities();
         });
         
@@ -1124,7 +1428,7 @@
             event.subject.fy = null;
         }
             
-        // --- ZOOM ---
+        // --- ZOOM & RESIZE ---
         const zoom = d3.zoom()
             .scaleExtent([0.2, 5]) 
             .on('zoom', (event) => {
@@ -1133,17 +1437,84 @@
 
         svg.call(zoom);
         
-        // --- RESIZE ---
         window.addEventListener('resize', () => {
             const newWidth = window.innerWidth;
             const newHeight = window.innerHeight;
             svg.attr('width', newWidth).attr('height', newHeight);
             simulation.force('center', d3.forceCenter(newWidth / 2, newHeight / 2)).restart();
         });
+        
+        // --- UI & SETTINGS HANDLERS ---
+        const settingsToggle = document.getElementById('settings-toggle');
+        const settingsPanel = document.getElementById('settings-panel');
+        settingsToggle.addEventListener('click', () => {
+            settingsPanel.classList.toggle('hidden-panel');
+        });
+
+        document.getElementById('input-opacity').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            settings.nodeOpacity = val;
+            document.getElementById('val-opacity').textContent = val;
+            d3.selectAll('.base-circle').attr('fill-opacity', val);
+            if(!activeNodeId) updateOpacities(); 
+        });
+        
+        document.getElementById('input-glare').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            settings.glareOpacity = val;
+            document.getElementById('val-glare').textContent = val;
+            d3.selectAll('.shine-circle').attr('fill-opacity', val);
+        });
+
+        document.getElementById('input-link').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            settings.linkOpacity = val;
+            document.getElementById('val-link').textContent = val;
+            if(!activeNodeId) {
+                d3.selectAll('.link').style('stroke-opacity', val);
+            }
+        });
+
+        document.getElementById('input-size').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            settings.nodeSize = val;
+            document.getElementById('val-size').textContent = val;
+            d3.selectAll('.base-circle, .shine-circle').attr('r', val);
+            d3.selectAll('text').attr('x', val + 8);
+            simulation.restart(); 
+        });
+
+        document.getElementById('input-charge').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            settings.forceCharge = val;
+            document.getElementById('val-charge').textContent = val;
+            simulation.force("charge", d3.forceManyBody().strength(val));
+            simulation.alpha(0.3).restart();
+        });
+
+        document.getElementById('input-distance').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            settings.linkDistance = val;
+            document.getElementById('val-distance').textContent = val;
+            simulation.force("link", d3.forceLink(processedLinks).id(d => d.id).distance(val));
+            simulation.alpha(0.3).restart();
+        });
+
+        document.getElementById('input-volume').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            settings.masterVolume = val;
+            document.getElementById('val-volume').textContent = val.toFixed(1);
+            if(audioContext && masterGainNode) {
+                masterGainNode.gain.setTargetAtTime(val, audioContext.currentTime, 0.1);
+            }
+        });
+
+        document.getElementById('input-neighbors').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            settings.maxNeighbors = val;
+            document.getElementById('val-neighbors').textContent = val;
+        });
 
     </script>
 </body>
 </html>
-
-
-
