@@ -143,13 +143,28 @@
         <h3 class="font-semibold text-lg border-b border-white/20 pb-2 mb-2">Visual Settings</h3>
         
         <div class="flex flex-col gap-1">
-            <label class="text-xs text-gray-300 flex justify-between">Glass Opacity <span id="val-opacity">0.2</span></label>
-            <input type="range" id="input-opacity" min="0" max="1" step="0.05" value="0.2" class="w-full">
+            <label class="text-xs text-gray-300 flex justify-between">Base Node Opacity <span id="val-opacity">0.15</span></label>
+            <input type="range" id="input-opacity" min="0" max="1" step="0.05" value="0.15" class="w-full">
         </div>
 
         <div class="flex flex-col gap-1">
-            <label class="text-xs text-gray-300 flex justify-between">Glare Strength <span id="val-glare">1.0</span></label>
-            <input type="range" id="input-glare" min="0" max="1" step="0.05" value="1.0" class="w-full">
+            <label class="text-xs text-gray-300 flex justify-between">Base Link Opacity <span id="val-link">0.7</span></label>
+            <input type="range" id="input-link" min="0" max="1" step="0.01" value="0.7" class="w-full">
+        </div>
+        
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-300 flex justify-between">Inactive Node Opacity <span id="val-inactive-node">0.35</span></label>
+            <input type="range" id="input-inactive-node" min="0" max="1" step="0.05" value="0.35" class="w-full">
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-300 flex justify-between">Inactive Link Opacity <span id="val-inactive-link">0.15</span></label>
+            <input type="range" id="input-inactive-link" min="0" max="1" step="0.01" value="0.15" class="w-full">
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-300 flex justify-between">Glare Strength <span id="val-glare">0.25</span></label>
+            <input type="range" id="input-glare" min="0" max="1" step="0.05" value="0.25" class="w-full">
         </div>
 
         <div class="flex flex-col gap-1">
@@ -158,8 +173,8 @@
         </div>
 
         <div class="flex flex-col gap-1">
-            <label class="text-xs text-gray-300 flex justify-between">Link Opacity <span id="val-link">0.15</span></label>
-            <input type="range" id="input-link" min="0" max="1" step="0.01" value="0.15" class="w-full">
+            <label class="text-xs text-gray-300 flex justify-between">Stroke Weight <span id="val-stroke">0.5</span></label>
+            <input type="range" id="input-stroke" min="0" max="5" step="0.5" value="0.5" class="w-full">
         </div>
 
         <h3 class="font-semibold text-lg border-b border-white/20 pb-2 mb-2 mt-2">Physics</h3>
@@ -952,10 +967,13 @@
 
         // --- GLOBAL SETTINGS ---
         const settings = {
-            nodeOpacity: 0.2,
+            nodeOpacity: 0.15,
+            inactiveNodeOpacity: 0.35, // New setting
+            inactiveLinkOpacity: 0.25, // New setting
             nodeSize: 20,
-            glareOpacity: 1.0,
-            linkOpacity: 0.15,
+            glareOpacity: .25,
+            nodeStrokeWeight: .5,
+            linkOpacity: 0.6,
             forceCharge: -600,
             linkDistance: 220,
             masterVolume: 1.0,
@@ -1035,7 +1053,7 @@
             .attr("class", "link")
             .style("stroke", d => {
                 if (d.source.group === "category" || d.target.group === "category") {
-                    return "rgba(144, 169, 134, 0.5)"; 
+                    return "#99ad99"; // UPDATED: Desaturated Sage Green
                 }
                 return "rgba(255, 255, 255, 1)"; 
             })
@@ -1061,7 +1079,7 @@
             })
             .attr("fill-opacity", settings.nodeOpacity) // Uses dynamic setting
             .attr("stroke", "rgba(255,255,255,0.6)") 
-            .attr("stroke-width", 1)
+            .attr("stroke-width", settings.nodeStrokeWeight)
             .style("filter", "url(#drop-shadow)"); 
 
         // 2. Glass Shine Overlay (The Reflection)
@@ -1207,16 +1225,16 @@
                 );
                 neighborIds.add(hoveredData.id);
 
-                d3.selectAll('.node').style('opacity', n => neighborIds.has(n.id) ? 1.0 : settings.nodeOpacity); 
-                d3.selectAll('.node text').style('opacity', n => neighborIds.has(n.id) ? 1.0 : 0.1);
-                d3.selectAll('.link').style('stroke-opacity', l => (l.source.id === hoveredData.id || l.target.id === hoveredData.id) ? 0.8 : 0.05);
+                d3.selectAll('.node').style('opacity', n => neighborIds.has(n.id) ? 1.0 : settings.inactiveNodeOpacity); 
+                d3.selectAll('.node text').style('opacity', n => neighborIds.has(n.id) ? 1.0 : settings.inactiveNodeOpacity);
+                d3.selectAll('.link').style('stroke-opacity', l => (l.source.id === hoveredData.id || l.target.id === hoveredData.id) ? 0.8 : settings.inactiveLinkOpacity);
                 return;
             }
 
             if (searchActive) {
                 const matchingNodeIds = new Set(soundscapeData.nodes.filter(n => n.id.toLowerCase().includes(searchTerm)).map(n => n.id));
-                d3.selectAll('.node, .node text').style('opacity', n => matchingNodeIds.has(n.id) ? 1.0 : settings.nodeOpacity);
-                d3.selectAll('.link').style('stroke-opacity', 0.05);
+                d3.selectAll('.node, .node text').style('opacity', n => matchingNodeIds.has(n.id) ? 1.0 : settings.inactiveNodeOpacity);
+                d3.selectAll('.link').style('stroke-opacity', settings.inactiveLinkOpacity);
                 return;
             }
 
@@ -1226,7 +1244,7 @@
                 // Reset strokes
                 d3.selectAll('.node circle.base-circle')
                     .attr('stroke', 'rgba(255,255,255,0.6)')
-                    .attr('stroke-width', 1);
+                    .attr('stroke-width', settings.nodeStrokeWeight);
                 return;
             }
 
@@ -1234,13 +1252,13 @@
                 const isClicked = nodeData.id === activeNodeId;
                 const isPlaying = playingNeighbors.has(nodeData.id);
                 if (isClicked || isPlaying) return 1.0;
-                return settings.nodeOpacity; // Use setting
+                return settings.inactiveNodeOpacity; // Use inactive setting
             });
 
             d3.selectAll('.node text').style('opacity', function(nodeData) {
                 const isClicked = nodeData.id === activeNodeId;
                 const isPlaying = playingNeighbors.has(nodeData.id);
-                return (isClicked || isPlaying) ? 1.0 : 0.0;
+                return (isClicked || isPlaying) ? 1.0 : settings.inactiveNodeOpacity;
             });
             
             // Highlight Rings
@@ -1253,9 +1271,10 @@
             }).attr('stroke-width', function(nodeData){
                 const isClicked = nodeData.id === activeNodeId;
                 const isPlaying = playingNeighbors.has(nodeData.id);
-                if(isClicked) return 3;
-                if(isPlaying) return 2;
-                return 1;
+                // Add highlight weight on top of base weight
+                if(isClicked) return settings.nodeStrokeWeight + 2;
+                if(isPlaying) return settings.nodeStrokeWeight + 1;
+                return settings.nodeStrokeWeight;
             });
             
             d3.selectAll('.link').style('stroke-opacity', function(linkData) {
@@ -1265,9 +1284,9 @@
                 const isPlayingTarget = playingNeighbors.has(linkData.target.id);
 
                 if ((isClickedSource && isPlayingTarget) || (isClickedTarget && isPlayingSource)) {
-                    return 0.6;
+                    return 0.8; // UPDATED: Brightened to match hover highlight (was 0.6)
                 }
-                return 0.05;
+                return settings.inactiveLinkOpacity;
             });
         }
         
@@ -1281,9 +1300,22 @@
             
             activeNodeId = d.id;
 
-            constclickedNodeData = soundscapeData.nodes.find(node => node.id === d.id);
-            if (constclickedNodeData && constclickedNodeData.sound) {
-                const buffer = await getAudioBuffer(constclickedNodeData.sound);
+            // NEW: Smooth Pan to Center the Active Node
+            // We calculate the translation needed to put the node (d.x, d.y) in the center (width/2, height/2)
+            // preserving the current zoom level (k).
+            const currentTransform = d3.zoomTransform(svg.node());
+            const scale = currentTransform.k;
+            const x = -d.x * scale + width / 2;
+            const y = -d.y * scale + height / 2;
+            
+            svg.transition()
+                .duration(1200) // 1.2s smooth pan
+                .ease(d3.easeCubicOut)
+                .call(zoom.transform, d3.zoomIdentity.translate(x, y).scale(scale));
+
+            const clickedNodeData = soundscapeData.nodes.find(node => node.id === d.id);
+            if (clickedNodeData && clickedNodeData.sound) {
+                const buffer = await getAudioBuffer(clickedNodeData.sound);
                 if (buffer) {
                     playSound(buffer, { volume: 1.0, loop: true });
                 }
@@ -1458,6 +1490,20 @@
             d3.selectAll('.base-circle').attr('fill-opacity', val);
             if(!activeNodeId) updateOpacities(); 
         });
+
+        document.getElementById('input-inactive-node').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            settings.inactiveNodeOpacity = val;
+            document.getElementById('val-inactive-node').textContent = val;
+            updateOpacities(); // Update immediately if active
+        });
+
+        document.getElementById('input-inactive-link').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            settings.inactiveLinkOpacity = val;
+            document.getElementById('val-inactive-link').textContent = val;
+            updateOpacities(); // Update immediately if active
+        });
         
         document.getElementById('input-glare').addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
@@ -1473,6 +1519,13 @@
             if(!activeNodeId) {
                 d3.selectAll('.link').style('stroke-opacity', val);
             }
+        });
+
+        document.getElementById('input-stroke').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            settings.nodeStrokeWeight = val;
+            document.getElementById('val-stroke').textContent = val;
+            updateOpacities(); // Re-apply widths
         });
 
         document.getElementById('input-size').addEventListener('input', (e) => {
